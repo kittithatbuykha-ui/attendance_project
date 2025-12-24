@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คชื่อ AI - ครูประเสริฐ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans min-h-screen">
+    <div class="max-w-md mx-auto p-4">
+        <div class="bg-blue-600 p-4 rounded-t-2xl shadow-lg text-center">
+            <h1 class="text-xl font-bold">{{ info.subject }}</h1>
+            <p class="text-sm opacity-80">{{ info.room }} | {{ info.teacher }}</p>
+        </div>
+
+        <div class="bg-gray-800 p-2 relative shadow-2xl">
+            <video id="video" class="w-full rounded-lg bg-black" autoplay playsinline></video>
+            <canvas id="canvas" class="hidden" width="640" height="480"></canvas>
+            <div class="absolute inset-0 border-2 border-blue-400 opacity-30 pointer-events-none m-4 rounded"></div>
+        </div>
+
+        <div id="status" class="bg-gray-800 p-6 rounded-b-2xl border-t border-gray-700 text-center">
+            <div id="result-name" class="text-3xl font-bold text-gray-400">กำลังรอนักเรียน...</div>
+            <div id="result-time" class="text-sm text-gray-500 mt-2">กรุณาส่องหน้าให้ชัดเจน</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const nameDiv = document.getElementById('result-name');
+        const timeDiv = document.getElementById('result-time');
+        let lastScannedName = ""; // ป้องกันเครื่องพูดซ้ำรัวๆ
+
+        // ฟังก์ชันพูดชื่อ
+        function speak(text) {
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'th-TH'; // ตั้งเป็นภาษาไทย
+            window.speechSynthesis.speak(msg);
+        }
+
+        // เปิดกล้องหน้า
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert("กรุณาอนุญาตให้เข้าถึงกล้อง"); });
+
+        async function scanFace() {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'frame.jpg');
+
+                try {
+                    const response = await fetch('/scan', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    
+                    if (data.name !== "Unknown") {
+                        nameDiv.innerText = "✅ พบ: " + data.name;
+                        nameDiv.className = "text-3xl font-bold text-green-400 animate-bounce";
+                        timeDiv.innerText = "เช็คชื่อเมื่อ: " + data.time;
+
+                        // ถ้าเป็นชื่อใหม่ ให้พูดชื่อ
+                        if (lastScannedName !== data.name) {
+                            speak("สวัสดีครับ " + data.name + " เช็คชื่อเรียบร้อยแล้วครับ");
+                            lastScannedName = data.name;
+                            // รีเซ็ตชื่อที่สแกนล่าสุดหลังจาก 5 วินาที เพื่อให้สแกนคนเดิมซ้ำได้ถ้าจำเป็น
+                            setTimeout(() => { lastScannedName = ""; }, 5000);
+                        }
+                    } else {
+                        nameDiv.innerText = "🔍 กำลังสแกน...";
+                        nameDiv.className = "text-3xl font-bold text-blue-400";
+                    }
+                } catch (e) { console.error(e); }
+            }, 'image/jpeg');
+        }
+        setInterval(scanFace, 3000); // สแกนทุก 3 วินาที
+    </script>
+</body>
+</html>
