@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ระบบจัดการครูประเสริฐ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <nav class="bg-indigo-800 p-4 text-white shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">ระบบแสกนหน้าเช็คชื่อเข้าเรียน </h1>
+            <div class="space-x-4">
+                <button onclick="showTab('attendance')" class="hover:underline">ตารางเช็คชื่อ</button>
+                <button onclick="showTab('register')" class="hover:underline">ลงทะเบียนเด็กใหม่</button>
+                <a href="/" class="bg-indigo-600 px-3 py-1 rounded">ไปหน้าสแกน</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto mt-6 p-4">
+        <div id="attendance-tab" class="tab-content">
+            <div class="bg-white p-6 rounded-xl shadow">
+                <h2 class="text-2xl font-bold mb-4">รายชื่อเข้าเรียนวันนี้</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-200 text-black">
+                                <th class="p-3 border">รหัส</th>
+                                <th class="p-3 border">ชื่อ</th>
+                                <th class="p-3 border">ชั้น/เลขที่</th>
+                                <th class="p-3 border">เวลา</th>
+                                <th class="p-3 border">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                            <tr class="text-black border-b text-center">
+                                <td class="p-3 border">{{ row['รหัส'] }}</td>
+                                <td class="p-3 border font-semibold text-left">{{ row['ชื่อนักเรียน'] }}</td>
+                                <td class="p-3 border">{{ row['ชั้น/เลขที่'] }}</td>
+                                <td class="p-3 border">{{ row['เวลา'] }}</td>
+                                <td class="p-3 border">
+                                    <span class="px-2 py-1 rounded text-xs {{ 'bg-green-100 text-green-700' if row['สถานะ'] == 'มาเรียนปกติ' else 'bg-red-100 text-red-700' }}">
+                                        {{ row['สถานะ'] }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="register-tab" class="tab-content hidden">
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <div>
+                    <h2 class="text-xl font-bold mb-4 text-indigo-800">1. ถ่ายรูปใบหน้า</h2>
+                    <div class="relative bg-black rounded-lg overflow-hidden aspect-video border-4 border-gray-200">
+                        <video id="reg-video" class="w-full h-full object-cover" autoplay playsinline></video>
+                        <canvas id="reg-canvas" class="hidden" width="640" height="480"></canvas>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2 text-center">จัดใบหน้าให้อยู่กลางกล้อง</p>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-bold mb-4 text-indigo-800">2. กรอกข้อมูล</h2>
+                    <div class="space-y-4">
+                        <input type="text" id="reg-name" placeholder="ชื่อ-นามสกุล" class="w-full border p-2 rounded text-black">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="reg-id" placeholder="รหัสประจำตัว" class="w-full border p-2 rounded text-black">
+                            <input type="text" id="reg-grade" placeholder="ชั้น (เช่น ม.1)" class="w-full border p-2 rounded text-black">
+                        </div>
+                        <input type="number" id="reg-no" placeholder="เลขที่" class="w-full border p-2 rounded text-black">
+                        
+                        <button onclick="captureAndRegister()" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-500 shadow-lg mt-4">
+                            📸 ถ่ายรูปและบันทึกนักเรียน
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('reg-video');
+        const canvas = document.getElementById('reg-canvas');
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+            
+            // เปิดกล้องเมื่อเข้าหน้าลงทะเบียน
+            if(tabName === 'register') {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => { video.srcObject = stream; })
+                    .catch(err => alert("ไม่สามารถเปิดกล้องได้"));
+            }
+        }
+
+        async function captureAndRegister() {
+            // ดึงข้อมูลจากฟอร์ม
+            const name = document.getElementById('reg-name').value;
+            const student_id = document.getElementById('reg-id').value;
+            const grade = document.getElementById('reg-grade').value;
+            const no = document.getElementById('reg-no').value;
+
+            if(!name || !student_id) return alert("กรุณากรอกชื่อและรหัสให้ครบ");
+
+            // ถ่ายรูปจาก Video ลง Canvas
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'student.jpg');
+                formData.append('name', name);
+                formData.append('student_id', student_id);
+                formData.append('grade', grade);
+                formData.append('no', no);
+
+                const response = await fetch('/register', { method: 'POST', body: formData });
+                const result = await response.json();
+
+                if(result.status === 'success') {
+                    alert("✅ บันทึก " + name + " เรียบร้อย!");
+                    location.reload(); // รีโหลดเพื่ออัปเดตตาราง
+                }
+            }, 'image/jpeg');
+        }
+    </script>
+</body>
+</html>
