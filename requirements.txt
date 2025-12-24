@@ -3,4 +3,8 @@ uvicorn
 python-multipart
 jinja2
 opencv-python-headless
+deepface
+tf-keras
+tensorflow-cpu
+
 
