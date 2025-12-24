@@ -21,15 +21,22 @@ COURSE_SETTINGS = {
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    # หน้าแรกใช้ index.html ตามที่ครูมี
     return templates.TemplateResponse("index.html", {"request": request, "info": COURSE_SETTINGS})
 
-@app.get("/teacher", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
 async def teacher_dashboard(request: Request):
     attendance_data = []
-    if os.path.exists("attendance.csv"):
-        df = pd.read_csv("attendance.csv")
-        attendance_data = df.to_dict(orient="records")
-    return templates.TemplateResponse("teacher.html", {"request": request, "data": attendance_data, "info": COURSE_SETTINGS})
+    file_path = "attendance.csv"
+    if os.path.exists(file_path):
+        try:
+            # อ่านไฟล์ด้วยหัวตารางที่ครูตั้งไว้
+            df = pd.read_csv(file_path, encoding='utf-8-sig')
+            attendance_data = df.to_dict(orient="records")
+        except:
+            attendance_data = []
+    # แก้ไขตรงนี้ให้ใช้ไฟล์ dashboard.html (ครูอย่าลืมเปลี่ยนชื่อไฟล์ใน templates นะครับ)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "data": attendance_data, "info": COURSE_SETTINGS})
 
 # --- ระบบลงทะเบียนนักเรียนใหม่ ---
 @app.post("/register")
@@ -42,7 +49,6 @@ async def register_student(
 ):
     if not os.path.exists("known_faces"): os.makedirs("known_faces")
     
-    # บันทึกไฟล์รูปโดยใช้ชื่อ: ชื่อ-เลขประจำตัว-ชั้น-เลขที่.jpg
     file_extension = file.filename.split(".")[-1]
     new_filename = f"{name}_{student_id}_{grade}_{no}.{file_extension}"
     file_path = os.path.join("known_faces", new_filename)
@@ -70,7 +76,6 @@ async def scan(file: UploadFile = File(...)):
             full_path = result[0]['identity'][0]
             file_name = os.path.basename(full_path).split(".")[0]
             
-            # แยกข้อมูลจากชื่อไฟล์ (name_id_grade_no)
             parts = file_name.split("_")
             name_display = parts[0]
             student_id = parts[1] if len(parts) > 1 else "-"
@@ -89,6 +94,7 @@ async def scan(file: UploadFile = File(...)):
                 "สถานะ": [status]
             }
             df = pd.DataFrame(log_data)
+            # บันทึกโดยใช้หัวตารางเดิมถ้าไฟล์มีอยู่แล้ว
             df.to_csv("attendance.csv", mode='a', index=False, header=not os.path.exists("attendance.csv"), encoding='utf-8-sig')
             
     except Exception as e:
